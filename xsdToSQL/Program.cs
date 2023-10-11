@@ -32,34 +32,48 @@ namespace xsdToSQL
                 // Retrieve the type mappings
                 Dictionary<string, string> typeMappings = GetMappings();
 
-                XmlNodeList dataSetNodes = xsdDocument.SelectNodes("//xs:element[contains(@*[local-name() = 'IsDataSet'], 'true')]", namespaceManager);
+                XmlNodeList? dataSetNodes = xsdDocument.SelectNodes("//xs:element[contains(@*[local-name() = 'IsDataSet'], 'true')]", namespaceManager);
 
+                if (dataSetNodes is null)
+                {
+                    throw new ArgumentNullException(paramName: nameof(dataSetNodes), message: $"{nameof(dataSetNodes)} is null");
+                }
 
                 using (StreamWriter sw = new StreamWriter(outputFilePath))
                 {
                     foreach (XmlNode dataSetNode in dataSetNodes)
                     {
-                        XmlNodeList tableNodes = dataSetNode.SelectNodes("xs:complexType/xs:choice/xs:element", namespaceManager);
+                        XmlNodeList? tableNodes = dataSetNode.SelectNodes("xs:complexType/xs:choice/xs:element", namespaceManager);
+
+                        if (tableNodes is null)
+                        {
+                            throw new ArgumentNullException(paramName: nameof(tableNodes), message: $"{nameof(tableNodes)} is null.");
+                        }
 
                         foreach (XmlNode tableNode in tableNodes)
                         {
-                            string tableName = tableNode.Attributes["name"]?.Value;
+                            string? tableName = tableNode.Attributes?["name"]?.Value;
 
                             if (!string.IsNullOrEmpty(tableName))
                             {
                                 // Use the filename as a prefix for the table name
                                 sw.WriteLine($"CREATE TABLE {xsdPrefix}_{tableName} (");
 
-                                XmlNodeList columns = tableNode.SelectNodes("xs:complexType/xs:sequence/xs:element", namespaceManager);
+                                XmlNodeList? columns = tableNode.SelectNodes("xs:complexType/xs:sequence/xs:element", namespaceManager);
+
+                                if (columns is null)
+                                {
+                                    throw new ArgumentNullException(paramName: nameof(columns), message: $"{nameof(columns)} is null.");
+                                }
 
                                 foreach (XmlNode column in columns)
                                 {
-                                    string name = column.Attributes["name"]?.Value;
-                                    string type = column.Attributes["type"]?.Value ?? GetSimpleType(column, namespaceManager);
+                                    string? name = column.Attributes?["name"]?.Value;
+                                    string? type = column.Attributes?["type"]?.Value ?? GetSimpleType(column, namespaceManager);
 
                                     if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(type) && typeMappings.ContainsKey(type))
                                     {
-                                        sw.WriteLine($"    {name} {typeMappings[type]}{(column.Attributes["minOccurs"]?.Value == "0" ? " NULL," : " NOT NULL,")}");
+                                        sw.WriteLine($"    {name} {typeMappings[type]}{(column.Attributes?["minOccurs"]?.Value == "0" ? " NULL," : " NOT NULL,")}");
                                     }
                                 }
 
@@ -80,12 +94,12 @@ namespace xsdToSQL
         }
 
 
-        private static string GetSimpleType(XmlNode columnNode, XmlNamespaceManager namespaceManager)
+        private static string? GetSimpleType(XmlNode columnNode, XmlNamespaceManager namespaceManager)
         {
             var simpleTypeNode = columnNode.SelectSingleNode("xs:simpleType/xs:restriction", namespaceManager);
             if (simpleTypeNode != null)
             {
-                return simpleTypeNode.Attributes["base"]?.Value;
+                return simpleTypeNode.Attributes?["base"]?.Value;
             }
             return null;
         }
